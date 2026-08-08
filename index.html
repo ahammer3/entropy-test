@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="An interactive dice experiment in five parts on why true randomness is hard in computing.">
+<meta name="color-scheme" content="light dark">
+<title>Just Make It Random — Why Randomness Is Hard</title>
+</head>
+<body>
+<style>
+  :root{
+    --bg:#E7ECF1; --panel:#FBFCFD; --panel-2:#EEF2F6; --inset:#F4F7F9;
+    --ink:#111820; --ink-2:#586674; --ink-3:#8A97A4;
+    --line:#D4DCE4; --grid:#DDE4EB;
+    --accent:#0C8A8F; --accent-2:#0A6F73; --accent-soft:rgba(12,138,143,.12);
+    --alert:#D6462E; --alert-soft:rgba(214,70,46,.12);
+    --shadow:0 1px 2px rgba(16,30,45,.06),0 8px 30px rgba(16,30,45,.07);
+    --font-sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0B0E12; --panel:#141A21; --panel-2:#1A222B; --inset:#10161C;
+      --ink:#E7ECF1; --ink-2:#95A2AF; --ink-3:#67747F;
+      --line:#26313B; --grid:#1D262F;
+      --accent:#2CB4BB; --accent-2:#4FCBD1; --accent-soft:rgba(44,180,187,.14);
+      --alert:#FF6A50; --alert-soft:rgba(255,106,80,.15);
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 34px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#E7ECF1; --panel:#FBFCFD; --panel-2:#EEF2F6; --inset:#F4F7F9;
+    --ink:#111820; --ink-2:#586674; --ink-3:#8A97A4;
+    --line:#D4DCE4; --grid:#DDE4EB;
+    --accent:#0C8A8F; --accent-2:#0A6F73; --accent-soft:rgba(12,138,143,.12);
+    --alert:#D6462E; --alert-soft:rgba(214,70,46,.12);
+    --shadow:0 1px 2px rgba(16,30,45,.06),0 8px 30px rgba(16,30,45,.07);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0B0E12; --panel:#141A21; --panel-2:#1A222B; --inset:#10161C;
+    --ink:#E7ECF1; --ink-2:#95A2AF; --ink-3:#67747F;
+    --line:#26313B; --grid:#1D262F;
+    --accent:#2CB4BB; --accent-2:#4FCBD1; --accent-soft:rgba(44,180,187,.14);
+    --alert:#FF6A50; --alert-soft:rgba(255,106,80,.15);
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 34px rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0}
+  .wrap{
+    background:var(--bg);color:var(--ink);
+    font-family:var(--font-sans);line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    padding:clamp(18px,4vw,64px) clamp(16px,4vw,32px);
+  }
+  .col{max-width:940px;margin:0 auto}
+  .prose{max-width:66ch}
+
+  /* ---------- typography ---------- */
+  .eyebrow{
+    font-family:var(--font-mono);font-size:12px;font-weight:600;
+    letter-spacing:.18em;text-transform:uppercase;color:var(--accent-2);
+    display:inline-flex;align-items:center;gap:.6em;margin:0 0 14px;
+  }
+  .eyebrow .num{color:var(--ink-3)}
+  h1{
+    font-size:clamp(38px,7vw,74px);line-height:.98;letter-spacing:-.03em;
+    font-weight:800;margin:0 0 22px;text-wrap:balance;
+  }
+  h2{
+    font-size:clamp(26px,4vw,40px);line-height:1.04;letter-spacing:-.02em;
+    font-weight:800;margin:0 0 14px;text-wrap:balance;
+  }
+  h3{font-size:17px;font-weight:700;letter-spacing:-.01em;margin:0 0 6px}
+  p{margin:0 0 16px;color:var(--ink-2)}
+  p strong{color:var(--ink);font-weight:650}
+  .lede{font-size:clamp(18px,2.4vw,22px);line-height:1.5;color:var(--ink);max-width:60ch}
+  .kicker{color:var(--accent-2)}
+  a.link{color:var(--accent-2);text-decoration:none;border-bottom:1px solid var(--line)}
+
+  /* ---------- structure ---------- */
+  .hero{padding:clamp(24px,7vw,88px) 0 clamp(30px,6vw,60px)}
+  .exp{padding:clamp(34px,6vw,64px) 0;border-top:1px solid var(--line)}
+  .exp-head{margin-bottom:26px}
+  .takeaway{
+    display:flex;gap:12px;align-items:flex-start;margin-top:22px;
+    padding:14px 16px;background:var(--accent-soft);
+    border-left:3px solid var(--accent);border-radius:0 10px 10px 0;
+  }
+  .takeaway .tk{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--accent-2);padding-top:3px;white-space:nowrap}
+  .takeaway p{margin:0;color:var(--ink);font-size:15px}
+
+  /* ---------- panels ---------- */
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow);padding:clamp(16px,3vw,26px);margin-top:22px;
+  }
+  .panel-title{
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ink-3);margin:0 0 16px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .panel-title::before{content:"";width:7px;height:7px;border-radius:50%;
+    background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:18px}
+  .seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:10px;padding:3px;gap:2px}
+  .seg button{
+    font-family:var(--font-mono);font-size:12.5px;font-weight:600;letter-spacing:.02em;
+    border:0;background:transparent;color:var(--ink-2);padding:7px 13px;border-radius:7px;
+    cursor:pointer;transition:background .15s,color .15s;
+  }
+  .seg button[aria-pressed="true"]{background:var(--panel);color:var(--ink);
+    box-shadow:0 1px 2px rgba(0,0,0,.12)}
+  .btn{
+    font-family:var(--font-mono);font-size:13px;font-weight:600;letter-spacing:.02em;
+    border:1px solid var(--accent);background:var(--accent);color:#fff;
+    padding:9px 16px;border-radius:10px;cursor:pointer;transition:transform .1s,filter .15s;
+  }
+  .btn:hover{filter:brightness(1.06)}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:transparent;color:var(--accent-2);border-color:var(--line)}
+  .btn.alert{background:var(--alert);border-color:var(--alert)}
+  .btn:disabled{opacity:.45;cursor:default;filter:none}
+  button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-3)}
+  input[type=range]{accent-color:var(--accent);width:190px;max-width:52vw}
+
+  .readout{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+  .mono{font-family:var(--font-mono)}
+
+  /* ---------- dice ---------- */
+  .stream{display:flex;gap:8px;flex-wrap:nowrap;overflow:hidden}
+  .die{
+    --pip:var(--ink);width:46px;height:46px;flex:0 0 auto;
+    background:var(--inset);border:1px solid var(--line);border-radius:11px;
+    display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+    padding:7px;gap:3px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  @media(max-width:560px){.die{width:38px;height:38px;padding:6px;gap:2px;border-radius:9px}}
+  .die .pip{border-radius:50%;background:var(--pip);opacity:0;transform:scale(.5);
+    transition:opacity .18s,transform .18s;width:100%;height:100%}
+  .die .pip.on{opacity:1;transform:scale(1)}
+  .die.tealpip{--pip:var(--accent)}
+  .die.alertpip{--pip:var(--alert)}
+  .die.fresh{animation:pop .25s ease}
+  @keyframes pop{from{transform:scale(.82)}to{transform:scale(1)}}
+
+  .streamrow{display:grid;grid-template-columns:36px 1fr auto;gap:14px;align-items:center;
+    padding:12px 0}
+  .streamrow+.streamrow{border-top:1px solid var(--line)}
+  .streamrow .tag{font-family:var(--font-mono);font-weight:700;font-size:15px;
+    width:34px;height:34px;display:grid;place-items:center;border-radius:9px;
+    background:var(--panel-2);border:1px solid var(--line);color:var(--ink)}
+  .verdict{font-family:var(--font-mono);font-size:12px;letter-spacing:.04em;color:var(--ink-3);
+    text-align:right;min-width:120px}
+  .verdict b{display:block;font-size:13px;letter-spacing:.02em}
+  .verdict.good b{color:var(--accent-2)} .verdict.bad b{color:var(--alert)}
+
+  /* ---------- canvas plots ---------- */
+  .plotwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  canvas.plot{display:block;width:100%;height:auto;background:var(--inset);
+    border:1px solid var(--line);border-radius:12px}
+  .plotmeta{display:flex;flex-wrap:wrap;gap:18px;margin-top:12px}
+  .stat{display:flex;flex-direction:column}
+  .stat .v{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink);
+    font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .stat .v.alert{color:var(--alert)} .stat .v.good{color:var(--accent-2)}
+  .stat .l{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-3)}
+
+  /* ---------- brute force ---------- */
+  .bf-grid{display:grid;gap:18px;grid-template-columns:1fr}
+  @media(min-width:720px){.bf-grid{grid-template-columns:1fr 1fr}}
+  .bf-card{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .bf-card h3{margin-bottom:12px}
+  .progress{height:8px;background:var(--inset);border-radius:99px;overflow:hidden;
+    border:1px solid var(--line);margin:14px 0 8px}
+  .progress i{display:block;height:100%;width:0;background:var(--alert);transition:width .05s linear}
+  .predict-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .badge{font-family:var(--font-mono);font-size:11px;padding:2px 8px;border-radius:99px;
+    letter-spacing:.06em;text-transform:uppercase}
+  .badge.match{background:var(--accent-soft);color:var(--accent-2)}
+  .scale-note{font-family:var(--font-mono);font-size:12.5px;color:var(--ink-2);
+    background:var(--inset);border:1px dashed var(--line);border-radius:10px;padding:12px 14px;margin-top:16px}
+  .scale-note b{color:var(--alert)}
+
+  /* ---------- bars (modulo) ---------- */
+  .bars{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;align-items:end;
+    height:220px;padding-top:10px;position:relative}
+  .bar{position:relative;height:100%;display:flex;flex-direction:column;justify-content:flex-end;
+    align-items:center;gap:8px}
+  .bar .fill{width:100%;background:var(--accent);border-radius:6px 6px 3px 3px;height:0;
+    transition:height .5s cubic-bezier(.2,.7,.2,1);min-height:2px}
+  .bar.hot .fill{background:var(--alert)}
+  .bar .cap{font-family:var(--font-mono);font-size:12px;color:var(--ink-2);
+    font-variant-numeric:tabular-nums}
+  .bar .face{font-family:var(--font-mono);font-weight:700;color:var(--ink-3)}
+  .expline{position:absolute;left:0;right:0;border-top:2px dashed var(--ink-3);opacity:.6;
+    pointer-events:none}
+  .expline span{position:absolute;right:0;top:-18px;font-family:var(--font-mono);font-size:11px;
+    color:var(--ink-3)}
+
+  /* ---------- human ---------- */
+  .pad{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:16px 0}
+  @media(max-width:520px){.pad{grid-template-columns:repeat(3,1fr)}}
+  .pad button{aspect-ratio:1;border:1px solid var(--line);background:var(--panel-2);
+    border-radius:14px;cursor:pointer;display:grid;place-items:center;transition:transform .08s,border-color .15s}
+  .pad button:hover{border-color:var(--accent)}
+  .pad button:active{transform:scale(.94)}
+  .pad .die{width:54px;height:54px;pointer-events:none}
+  .guessline{font-family:var(--font-mono);font-size:13px;color:var(--ink-2);min-height:22px}
+  .guessline b.hit{color:var(--alert)} .guessline b.miss{color:var(--accent-2)}
+  .meter{height:26px;background:var(--inset);border:1px solid var(--line);border-radius:8px;
+    position:relative;overflow:hidden;margin-top:12px}
+  .meter .base{position:absolute;top:0;bottom:0;left:16.66%;border-left:2px dashed var(--ink-3);opacity:.7}
+  .meter .fillp{position:absolute;top:0;bottom:0;left:0;width:0;background:var(--alert);
+    opacity:.85;transition:width .3s}
+  .meter .txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--ink);mix-blend-mode:normal}
+
+  .footer{border-top:1px solid var(--line);padding-top:34px;margin-top:20px}
+  .footer .prose p{font-size:16px}
+  .credits{font-family:var(--font-mono);font-size:12px;color:var(--ink-3);margin-top:26px}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001s!important;transition-duration:.001s!important}
+  }
+</style>
+
+<div class="wrap">
+<div class="col">
+
+  <!-- ===================== HERO ===================== -->
+  <header class="hero">
+    <p class="eyebrow"><span class="num">///</span> A dice experiment in five parts</p>
+    <h1>&ldquo;Just&nbsp;make&nbsp;it random.&rdquo;</h1>
+    <p class="lede">It sounds like the easiest instruction in programming. It is one of the
+      hardest things a computer actually does &mdash; and when it&rsquo;s done wrong, nothing
+      <em>looks</em> wrong. That&rsquo;s the whole trap. Below, five short experiments with a
+      single six-sided die show you why.</p>
+  </header>
+
+  <!-- ===================== EXP 01 ===================== -->
+  <section class="exp">
+    <div class="exp-head">
+      <p class="eyebrow"><span class="num">Experiment 01</span> &middot; The eye test</p>
+      <h2>Two dice. One is honest.</h2>
+      <div class="prose">
+        <p>One of these streams comes from your operating system&rsquo;s cryptographic randomness.
+        The other is a five-line function a developer wrote in a hurry &mdash; the kind that ships
+        to production all the time. Watch them roll. <strong>Which stream is truly random?</strong></p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <p class="panel-title">Live feed &middot; rolling</p>
+      <div class="streamrow">
+        <div class="tag">A</div>
+        <div class="stream" id="streamA"></div>
+        <div class="verdict" id="verdictA">guess below</div>
+      </div>
+      <div class="streamrow">
+        <div class="tag">B</div>
+        <div class="stream" id="streamB"></div>
+        <div class="verdict" id="verdictB">guess below</div>
+      </div>
+      <div class="controls" style="margin-top:18px;margin-bottom:0">
+        <div class="seg" role="group" aria-label="Your guess">
+          <button id="guessA">A is the real one</button>
+          <button id="guessB">B is the real one</button>
+        </div>
+        <button class="btn ghost" id="reveal01">Reveal &amp; explain</button>
+        <button class="btn ghost" id="reshuffle01">New round</button>
+      </div>
+      <p id="explain01" class="prose" style="margin:16px 0 0;display:none"></p>
+    </div>
+
+    <div class="takeaway">
+      <span class="tk">Finding</span>
+      <p>You cannot verify randomness by looking at it. A predictable generator and a
+      genuine one produce output that is, to the human eye, identical.</p>
+    </div>
+  </section>
+
+  <!-- ===================== EXP 02 ===================== -->
+  <section class="exp">
+    <div class="exp-head">
+      <p class="eyebrow"><span class="num">Experiment 02</span> &middot; The hidden lattice</p>
+      <h2>Plot it differently, and the ghost appears.</h2>
+      <div class="prose">
+        <p>Take that same &ldquo;hasty&rdquo; generator. Instead of reading the dice one at a
+        time, plot each roll against the <em>next</em> roll as a point on a square. Genuine
+        randomness fills the square like static. The hasty generator&hellip; doesn&rsquo;t.
+        Its numbers were never free &mdash; they were quietly marching along a handful of
+        invisible lines the whole time.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Generator">
+          <button id="latLCG" aria-pressed="true">Hasty generator</button>
+          <button id="latCrypto" aria-pressed="false">Real randomness</button>
+        </div>
+        <div class="field">
+          <label for="latPts">Points &middot; <span id="latPtsVal" class="readout">2500</span></label>
+          <input type="range" id="latPts" min="300" max="6000" step="100" value="2500">
+        </div>
+        <button class="btn ghost" id="latReplay">Replot</button>
+      </div>
+      <div class="plotwrap">
+        <canvas class="plot" id="latCanvas" width="900" height="480" aria-label="Scatter plot of each roll against the next"></canvas>
+      </div>
+      <div class="plotmeta">
+        <div class="stat"><span class="v" id="latDim">&mdash;</span><span class="l">visible structure</span></div>
+        <div class="stat"><span class="v readout" id="latN">2500</span><span class="l">points plotted</span></div>
+      </div>
+    </div>
+
+    <div class="takeaway">
+      <span class="tk">Finding</span>
+      <p>Flaws that are invisible in one dimension can be glaring in two. A generator can pass
+      every casual check and still live on a lattice you just weren&rsquo;t looking at.</p>
+    </div>
+  </section>
+
+  <!-- ===================== EXP 03 ===================== -->
+  <section class="exp">
+    <div class="exp-head">
+      <p class="eyebrow"><span class="num">Experiment 03</span> &middot; The seed is the secret</p>
+      <h2>If the starting point is guessable, everything is.</h2>
+      <div class="prose">
+        <p>Every software generator is just a machine turning a crank from a starting number
+        &mdash; the <em>seed</em>. Same seed, same dice, every single time. So the only thing
+        protecting you is how hard the seed is to guess. Here a &ldquo;device&rdquo; picked a
+        secret seed from a small pool and leaked its first ten rolls. Watch an attacker try
+        every possible seed until the rolls line up &mdash; and then <strong>predict rolls the
+        device hasn&rsquo;t even made yet.</strong></p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <div class="field">
+          <label for="bfBits">Seed pool size &middot; <span id="bfBitsVal" class="readout">2^16 = 65,536</span></label>
+          <input type="range" id="bfBits" min="8" max="20" step="1" value="16">
+        </div>
+        <button class="btn ghost" id="bfNew">New device</button>
+        <button class="btn alert" id="bfCrack">Brute-force the seed</button>
+      </div>
+
+      <div class="bf-grid">
+        <div class="bf-card">
+          <h3>The device&rsquo;s rolls <span class="mono" style="color:var(--ink-3);font-weight:400">(leaked)</span></h3>
+          <div class="stream" id="bfLeaked" style="flex-wrap:wrap"></div>
+          <p class="mono" style="font-size:12px;color:var(--ink-3);margin:12px 0 0">
+            Secret seed: <span id="bfSecret">hidden</span></p>
+        </div>
+        <div class="bf-card">
+          <h3>The attacker</h3>
+          <p class="mono" style="font-size:13px;margin:0;color:var(--ink-2)">
+            Seeds tried: <b id="bfCount" style="color:var(--ink)">0</b></p>
+          <div class="progress"><i id="bfBar"></i></div>
+          <p class="mono" style="font-size:12px;color:var(--ink-3);margin:4px 0 0" id="bfStatus">idle</p>
+          <div id="bfPredictWrap" style="display:none;margin-top:14px">
+            <p class="mono" style="font-size:12px;color:var(--ink-3);margin:0 0 6px">
+              Predicted next rolls vs. reality:</p>
+            <div class="predict-row" id="bfPredict"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="scale-note" id="bfScale"></div>
+    </div>
+
+    <div class="takeaway">
+      <span class="tk">Finding</span>
+      <p>The math can be flawless and it won&rsquo;t matter. If the seed comes from a small or
+      predictable source &mdash; a clock, a counter, a weak fallback &mdash; the entire stream of
+      &ldquo;random&rdquo; numbers is reconstructable. This is the exact failure class behind
+      real-world key-generation disasters: not broken cryptography, broken entropy.</p>
+    </div>
+  </section>
+
+  <!-- ===================== EXP 04 ===================== -->
+  <section class="exp">
+    <div class="exp-head">
+      <p class="eyebrow"><span class="num">Experiment 04</span> &middot; Death by a rounding error</p>
+      <h2>Even perfect randomness can leak through a bad shortcut.</h2>
+      <div class="prose">
+        <p>Now suppose your randomness is genuinely perfect &mdash; a flawless source that hands
+        you a digit, 0 to 9. To turn it into a die you write the obvious thing:
+        <span class="mono">value % 6</span>. Ship it. But 10 doesn&rsquo;t divide evenly by 6:
+        the values 6, 7, 8, 9 wrap back onto faces 1, 2, 3, 4 &mdash; so those four faces land
+        <strong>twice as often</strong> as 5 and 6. A perfect source, a one-line habit, and a
+        quietly loaded die.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Method">
+          <button id="modNaive" aria-pressed="true">value % 6 (the shortcut)</button>
+          <button id="modFair" aria-pressed="false">rejection sampling (correct)</button>
+        </div>
+        <button class="btn" id="modRoll">Roll 10,000</button>
+        <button class="btn ghost" id="modReset">Reset</button>
+      </div>
+      <div class="bars" id="modBars">
+        <div class="expline" id="modExp"><span>fair share</span></div>
+      </div>
+      <div class="plotmeta" style="margin-top:16px">
+        <div class="stat"><span class="v readout" id="modTotal">0</span><span class="l">total rolls</span></div>
+        <div class="stat"><span class="v readout" id="modSkew">0.0%</span><span class="l">worst-face bias</span></div>
+      </div>
+    </div>
+
+    <div class="takeaway">
+      <span class="tk">Finding</span>
+      <p>Good randomness is a chain, and every link counts: the source, the seeding, <em>and</em>
+      the way you shape raw bits into the values you need. A one-line convenience can quietly
+      undo all of it.</p>
+    </div>
+  </section>
+
+  <!-- ===================== EXP 05 ===================== -->
+  <section class="exp">
+    <div class="exp-head">
+      <p class="eyebrow"><span class="num">Experiment 05</span> &middot; You try</p>
+      <h2>&ldquo;I&rsquo;ll just pick randomly in my head.&rdquo;</h2>
+      <div class="prose">
+        <p>The instinctive human fallback is the worst generator of all. Tap the dice as
+        randomly as you possibly can &mdash; really try. A dead-simple predictor that only knows
+        your last move will guess your next one. If you were truly random it would be right
+        <span class="mono">1 in 6</span> times (16.7%). Watch it beat that.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <p class="panel-title">Tap freely &middot; at least 15 taps</p>
+      <div class="pad" id="humanPad"></div>
+      <p class="guessline" id="humanGuess">The predictor is waiting for your first few taps&hellip;</p>
+      <div class="meter">
+        <div class="base"></div>
+        <div class="fillp" id="humanFill"></div>
+        <div class="txt" id="humanTxt">predictor accuracy: &mdash; &middot; baseline 16.7%</div>
+      </div>
+      <div class="controls" style="margin-top:16px;margin-bottom:0">
+        <span class="mono" style="font-size:12px;color:var(--ink-3)">Taps: <b id="humanN" style="color:var(--ink)">0</b></span>
+        <button class="btn ghost" id="humanReset">Start over</button>
+      </div>
+    </div>
+
+    <div class="takeaway">
+      <span class="tk">Finding</span>
+      <p>People avoid repeats, over-alternate, and dodge patterns they think &ldquo;look
+      rigged.&rdquo; Those very habits <em>are</em> the pattern. Intuition is not an entropy source.</p>
+    </div>
+  </section>
+
+  <!-- ===================== CLOSE ===================== -->
+  <footer class="footer">
+    <p class="eyebrow"><span class="num">///</span> So how do you actually do it?</p>
+    <div class="prose">
+      <p>You don&rsquo;t invent randomness &mdash; you <strong>harvest</strong> it. Real systems
+      collect genuine physical unpredictability (electrical noise, timing jitter, dedicated
+      hardware) into an entropy pool, then use a <strong>cryptographically secure</strong>
+      generator so that seeing past outputs tells you nothing about future ones. The rule of
+      thumb for everyone else is short: <span class="mono kicker">never roll your own</span>.
+      Reach for the vetted primitive your platform already ships &mdash;
+      <span class="mono">crypto.getRandomValues</span>, <span class="mono">/dev/urandom</span>,
+      <span class="mono">secrets</span> &mdash; not <span class="mono">Math.random</span>, not a
+      timestamp, not your own clever function.</p>
+      <p>Because that&rsquo;s the thread running through all five experiments: broken randomness
+      doesn&rsquo;t announce itself. It passes the eye test, hides its lattice, reuses a
+      guessable seed, and leaks through a rounding error &mdash; all while looking perfectly fine.
+      &ldquo;Just make it random&rdquo; is a genuinely hard problem wearing an easy problem&rsquo;s
+      clothes.</p>
+    </div>
+    <p class="credits">An interactive explainer &middot; every die above is generated live in your browser</p>
+  </footer>
+
+</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+  const PIPS = {
+    1:[4], 2:[2,6], 3:[2,4,6], 4:[0,2,6,8], 5:[0,2,4,6,8], 6:[0,3,6,2,5,8]
+  };
+  function makeDie(cls){
+    const d = document.createElement("div");
+    d.className = "die" + (cls?(" "+cls):"");
+    for(let i=0;i<9;i++){ const s=document.createElement("span"); s.className="pip"; d.appendChild(s); }
+    return d;
+  }
+  function setDie(die, val){
+    const on = new Set(PIPS[val]);
+    const pips = die.children;
+    for(let i=0;i<9;i++) pips[i].classList.toggle("on", on.has(i));
+  }
+  // real randomness helper
+  const hasCrypto = !!(window.crypto && window.crypto.getRandomValues);
+  function fillBytes(buf){
+    if(hasCrypto){ crypto.getRandomValues(buf); }
+    else { for(let i=0;i<buf.length;i++) buf[i]=Math.floor(Math.random()*256); }
+  }
+  function randUnit(){
+    if(hasCrypto){ const a=new Uint32Array(1); crypto.getRandomValues(a); return a[0]/4294967296; }
+    return Math.random();
+  }
+  function cryptoDie(){ return 1 + Math.floor(randUnit()*6); }
+
+  // ---- the "hasty" LCG: full period, mixes fine, but lives on 25 lines in 2D ----
+  const A=25, C=13, M=65536;
+  function makeLCG(seed){
+    let x = seed % M;
+    return {
+      next(){ x = (A*x + C) % M; return x; },
+      die(){ x = (A*x + C) % M; return 1 + Math.floor((x/M)*6); }
+    };
+  }
+
+  /* ==================== EXP 01 : eye test ==================== */
+  (function(){
+    const streamA=document.getElementById("streamA"), streamB=document.getElementById("streamB");
+    const vA=document.getElementById("verdictA"), vB=document.getElementById("verdictB");
+    const LEN=8; let realIsA, lcg, timer=null, revealed=false, guessed=null;
+    const tilesA=[], tilesB=[];
+    for(let i=0;i<LEN;i++){ const a=makeDie(),b=makeDie(); streamA.appendChild(a); streamB.appendChild(b); tilesA.push(a); tilesB.push(b);}
+
+    let qA=[], qB=[];
+    function render(){
+      for(let i=0;i<LEN;i++){ setDie(tilesA[i], qA[i]); setDie(tilesB[i], qB[i]); }
+      tilesA[LEN-1].classList.remove("fresh"); tilesB[LEN-1].classList.remove("fresh");
+      void tilesA[LEN-1].offsetWidth;
+      tilesA[LEN-1].classList.add("fresh"); tilesB[LEN-1].classList.add("fresh");
+    }
+    function realDie(){ return cryptoDie(); }
+    function fakeDie(){ return lcg.die(); }
+    function tick(){
+      const rd=realDie(), fd=fakeDie();
+      qA.push(realIsA?rd:fd); qB.push(realIsA?fd:rd);
+      if(qA.length>LEN){ qA.shift(); qB.shift(); }
+      render();
+    }
+    function start(){
+      realIsA = Math.random()<0.5;
+      lcg = makeLCG(1 + Math.floor(Math.random()*(M-1)));
+      qA=[]; qB=[];
+      for(let i=0;i<LEN;i++){ tick(); }
+      revealed=false; guessed=null;
+      vA.className="verdict"; vB.className="verdict";
+      vA.textContent="guess below"; vB.textContent="guess below";
+      explain.style.display="none";
+      gA.setAttribute("aria-pressed","false"); gB.setAttribute("aria-pressed","false");
+      if(timer) clearInterval(timer);
+      timer=setInterval(tick, reduce?1400:820);
+    }
+    function reveal(){
+      revealed=true;
+      const goodEl = realIsA?vA:vB, badEl = realIsA?vB:vA;
+      goodEl.className="verdict good"; goodEl.innerHTML="<b>Real randomness</b>OS crypto source";
+      badEl.className="verdict bad"; badEl.innerHTML="<b>Hasty generator</b>a tiny LCG";
+      let msg;
+      if(guessed){
+        const right = (guessed===(realIsA?"A":"B"));
+        msg = right
+          ? "<strong>Nice call.</strong> But be honest &mdash; that was a coin-flip. "
+          : "<strong>Fooled you.</strong> Don&rsquo;t feel bad &mdash; ";
+      } else { msg=""; }
+      explain.innerHTML = msg + "Stream " + (realIsA?"A":"B") + " came from your operating "+
+        "system&rsquo;s cryptographic randomness; stream " + (realIsA?"B":"A") + " came from a "+
+        "throwaway <span class='mono'>x = (25&middot;x + 13) mod 65536</span> generator. Both produce "+
+        "dice that jump around convincingly. The point isn&rsquo;t that you guessed wrong &mdash; "+
+        "it&rsquo;s that <strong>watching more rolls would never have helped.</strong>";
+      explain.style.display="block";
+    }
+    const gA=document.getElementById("guessA"), gB=document.getElementById("guessB");
+    const explain=document.getElementById("explain01");
+    gA.onclick=()=>{ guessed="A"; gA.setAttribute("aria-pressed","true"); gB.setAttribute("aria-pressed","false"); };
+    gB.onclick=()=>{ guessed="B"; gB.setAttribute("aria-pressed","true"); gA.setAttribute("aria-pressed","false"); };
+    document.getElementById("reveal01").onclick=reveal;
+    document.getElementById("reshuffle01").onclick=start;
+    // seg styling reuse
+    gA.parentElement.classList.add("seg");
+    start();
+  })();
+
+  /* ==================== EXP 02 : lattice ==================== */
+  (function(){
+    const canvas=document.getElementById("latCanvas");
+    const ctx=canvas.getContext("2d");
+    const ptsSlider=document.getElementById("latPts"), ptsVal=document.getElementById("latPtsVal");
+    const nOut=document.getElementById("latN"), dimOut=document.getElementById("latDim");
+    let mode="lcg"; // or crypto
+    function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+    function points(n){
+      const out=[];
+      if(mode==="lcg"){
+        let x = 1 + Math.floor(Math.random()*(M-1));
+        let prev = ((A*x+C)%M)/M;
+        for(let i=0;i<n;i++){ x=(A*x+C)%M; const cur=x/M; out.push([prev,cur]); prev=cur; }
+      } else {
+        let prev=randUnit();
+        for(let i=0;i<n;i++){ const cur=randUnit(); out.push([prev,cur]); prev=cur; }
+      }
+      return out;
+    }
+    function draw(){
+      const dpr=Math.min(2,window.devicePixelRatio||1);
+      const cssW=canvas.clientWidth||900, cssH=Math.round(cssW*0.53);
+      canvas.width=cssW*dpr; canvas.height=cssH*dpr;
+      canvas.style.height=cssH+"px";
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      const pad=26, W=cssW-pad*2, H=cssH-pad*2;
+      ctx.clearRect(0,0,cssW,cssH);
+      // grid
+      ctx.strokeStyle=css("--grid"); ctx.lineWidth=1;
+      for(let i=0;i<=10;i++){
+        const gx=pad+W*i/10, gy=pad+H*i/10;
+        ctx.beginPath(); ctx.moveTo(gx,pad); ctx.lineTo(gx,pad+H); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(pad,gy); ctx.lineTo(pad+W,gy); ctx.stroke();
+      }
+      ctx.strokeStyle=css("--line"); ctx.lineWidth=1.2;
+      ctx.strokeRect(pad,pad,W,H);
+      const n=parseInt(ptsSlider.value,10);
+      const pts=points(n);
+      const color = mode==="lcg"?css("--alert"):css("--accent");
+      const r = n>3000?1.1:1.6;
+      let idx=0;
+      function batch(count){
+        ctx.fillStyle=color;
+        const end=Math.min(idx+count, pts.length);
+        for(;idx<end;idx++){
+          const [px,py]=pts[idx];
+          const X=pad+px*W, Y=pad+(1-py)*H;
+          ctx.beginPath(); ctx.arc(X,Y,r,0,6.2832); ctx.fill();
+        }
+        if(idx<pts.length && !reduce){ requestAnimationFrame(()=>batch(Math.ceil(n/28))); }
+      }
+      if(reduce) batch(pts.length); else batch(Math.ceil(n/28));
+      nOut.textContent=n.toLocaleString();
+      dimOut.textContent = mode==="lcg"?"25 lines":"none \u2014 static";
+      dimOut.className = "v " + (mode==="lcg"?"alert":"good");
+    }
+    const bLCG=document.getElementById("latLCG"), bCry=document.getElementById("latCrypto");
+    function setMode(m){
+      mode=m;
+      bLCG.setAttribute("aria-pressed", m==="lcg"?"true":"false");
+      bCry.setAttribute("aria-pressed", m==="crypto"?"true":"false");
+      draw();
+    }
+    bLCG.onclick=()=>setMode("lcg");
+    bCry.onclick=()=>setMode("crypto");
+    ptsSlider.oninput=()=>{ ptsVal.textContent=parseInt(ptsSlider.value,10).toLocaleString(); };
+    ptsSlider.onchange=draw;
+    document.getElementById("latReplay").onclick=draw;
+    let rt; window.addEventListener("resize",()=>{ clearTimeout(rt); rt=setTimeout(draw,180); });
+    draw();
+  })();
+
+  /* ==================== EXP 03 : brute force ==================== */
+  (function(){
+    // small self-contained PRNG seeded by an integer (mulberry32)
+    function mulberry32(a){
+      return function(){
+        a|=0; a=(a+0x6D2B79F5)|0;
+        let t=Math.imul(a^(a>>>15),1|a);
+        t=(t+Math.imul(t^(t>>>7),61|t))^t;
+        return ((t^(t>>>14))>>>0)/4294967296;
+      };
+    }
+    function rollsFor(seed, k){
+      const g=mulberry32(seed>>>0), out=[];
+      for(let i=0;i<k;i++) out.push(1+Math.floor(g()*6));
+      return out;
+    }
+    const OBS=10, PRED=5;
+    const bitsS=document.getElementById("bfBits"), bitsV=document.getElementById("bfBitsVal");
+    const leaked=document.getElementById("bfLeaked"), secretEl=document.getElementById("bfSecret");
+    const countEl=document.getElementById("bfCount"), bar=document.getElementById("bfBar");
+    const status=document.getElementById("bfStatus"), scale=document.getElementById("bfScale");
+    const predWrap=document.getElementById("bfPredictWrap"), predRow=document.getElementById("bfPredict");
+    const crackBtn=document.getElementById("bfCrack"), newBtn=document.getElementById("bfNew");
+    let bits=16, N=65536, secret=0, deviceRolls=[], running=false;
+
+    function fmt(n){ return n.toLocaleString(); }
+    function scaleText(){
+      const perSec=1e9;
+      const secBig = Math.pow(2,128)/perSec;
+      const years = secBig/ (60*60*24*365);
+      scale.innerHTML = "This pool holds <b>"+fmt(N)+"</b> seeds &mdash; a modern laptop clears that in a "+
+        "blink. That&rsquo;s the entire point: a proper key uses <b>2<sup>128</sup></b> or more. "+
+        "At a billion guesses per second, brute-forcing <em>that</em> would take about "+
+        "<b>10<sup>22</sup> years</b> &mdash; a trillion times the age of the universe. The gap between "+
+        "&ldquo;seeded from a clock&rdquo; and &ldquo;seeded properly&rdquo; is the gap between those two numbers.";
+    }
+    function newDevice(){
+      running=false;
+      bits=parseInt(bitsS.value,10); N=Math.pow(2,bits);
+      bitsV.textContent="2^"+bits+" = "+fmt(N);
+      secret = Math.floor(Math.random()*N);
+      deviceRolls = rollsFor(secret, OBS+PRED);
+      // render leaked
+      leaked.innerHTML="";
+      for(let i=0;i<OBS;i++){ const d=makeDie(); leaked.appendChild(d); setDie(d, deviceRolls[i]); }
+      secretEl.textContent="hidden";
+      countEl.textContent="0"; bar.style.width="0%"; status.textContent="idle";
+      predWrap.style.display="none"; predRow.innerHTML="";
+      crackBtn.disabled=false;
+      scaleText();
+    }
+    function crack(){
+      if(running) return; running=true; crackBtn.disabled=true;
+      status.textContent="scanning seeds\u2026";
+      const observed=deviceRolls.slice(0,OBS);
+      let s=0; const t0=performance.now();
+      const chunk = Math.max(2000, Math.floor(N/120));
+      function step(){
+        const end=Math.min(s+chunk, N);
+        let found=-1;
+        for(; s<end; s++){
+          const r=rollsFor(s, OBS);
+          let ok=true;
+          for(let i=0;i<OBS;i++){ if(r[i]!==observed[i]){ ok=false; break; } }
+          if(ok){ found=s; break; }
+        }
+        countEl.textContent=fmt(s);
+        bar.style.width=(100*s/N).toFixed(1)+"%";
+        if(found>=0){
+          finish(found, performance.now()-t0);
+          return;
+        }
+        if(s<N){ requestAnimationFrame(step); }
+        else { status.textContent="no match (unexpected)"; running=false; crackBtn.disabled=false; }
+      }
+      requestAnimationFrame(step);
+    }
+    function finish(seed, ms){
+      running=false;
+      bar.style.width="100%";
+      secretEl.innerHTML="<b style='color:var(--alert)'>"+fmt(seed)+"</b> &mdash; recovered";
+      status.innerHTML="matched in <b style='color:var(--ink)'>"+fmt(parseInt(countEl.textContent.replace(/,/g,''),10)+1)+
+        "</b> tries &middot; "+ms.toFixed(0)+" ms";
+      // predict
+      const predicted=rollsFor(seed, OBS+PRED).slice(OBS);
+      const actual=deviceRolls.slice(OBS);
+      predRow.innerHTML="";
+      for(let i=0;i<PRED;i++){
+        const box=document.createElement("div");
+        box.style.textAlign="center";
+        const d=makeDie("alertpip"); box.appendChild(d); setDie(d, predicted[i]);
+        const b=document.createElement("div");
+        b.className="badge match"; b.textContent = predicted[i]===actual[i]?"\u2713":"\u2717";
+        b.style.marginTop="6px"; b.style.display="inline-block";
+        box.appendChild(b);
+        predRow.appendChild(box);
+      }
+      predWrap.style.display="block";
+    }
+    bitsS.oninput=()=>{ bitsV.textContent="2^"+bitsS.value+" = "+fmt(Math.pow(2,parseInt(bitsS.value,10))); };
+    bitsS.onchange=newDevice;
+    newBtn.onclick=newDevice;
+    crackBtn.onclick=crack;
+    newDevice();
+  })();
+
+  /* ==================== EXP 04 : modulo bias ==================== */
+  (function(){
+    const barsWrap=document.getElementById("modBars"), expline=document.getElementById("modExp");
+    const totalEl=document.getElementById("modTotal"), skewEl=document.getElementById("modSkew");
+    let method="naive"; let counts=[0,0,0,0,0,0]; let total=0;
+    const bars=[];
+    for(let f=1;f<=6;f++){
+      const b=document.createElement("div"); b.className="bar";
+      const fill=document.createElement("div"); fill.className="fill";
+      const cap=document.createElement("div"); cap.className="cap"; cap.textContent="0%";
+      const face=document.createElement("div"); face.className="face"; face.textContent=f;
+      b.appendChild(fill); b.appendChild(cap); b.appendChild(face);
+      barsWrap.appendChild(b); bars.push({b,fill,cap});
+    }
+    // unbiased digits 0..9 from crypto (reject bytes >=250 so 0..9 are equally likely)
+    function addRolls(n){
+      const buf=new Uint8Array(4096);
+      if(method==="naive"){
+        let got=0;
+        while(got<n){ fillBytes(buf);
+          for(let j=0;j<buf.length && got<n;j++){ if(buf[j]<250){ counts[(buf[j]%10)%6]++; total++; got++; } } }
+      } else {
+        // rejection sampling: keep only digits 0..5, exactly one face each
+        let got=0;
+        while(got<n){ fillBytes(buf);
+          for(let j=0;j<buf.length && got<n;j++){ if(buf[j]<250){ const d=buf[j]%10; if(d<6){ counts[d]++; total++; got++; } } } }
+      }
+      render();
+    }
+    function render(){
+      totalEl.textContent=total.toLocaleString();
+      const maxPct = Math.max(1, ...counts.map(c=> total? c/total*100 : 0));
+      let worst=0;
+      for(let i=0;i<6;i++){
+        const pct = total? counts[i]/total*100 : 0;
+        const dev = total? (pct-100/6) : 0;
+        if(Math.abs(dev)>Math.abs(worst)) worst=dev;
+        bars[i].fill.style.height = (total? Math.max(2,(pct/ (maxPct*1.15))*100):0)+"%";
+        bars[i].cap.textContent = pct.toFixed(2)+"%";
+        bars[i].b.classList.toggle("hot", method==="naive" && total>0 && i<4);
+      }
+      // fair-share dashed line position (relative to max scaling)
+      if(total){
+        const fair=100/6;
+        const y = (fair/(maxPct*1.15))*100;
+        expline.style.bottom = "calc("+y+"% )";
+        expline.style.top="auto";
+      }
+      skewEl.textContent = (worst>=0?"+":"")+worst.toFixed(2)+"%";
+      skewEl.className = "v readout " + (Math.abs(worst)>0.6?"alert":"");
+    }
+    function reset(){ counts=[0,0,0,0,0,0]; total=0; render(); }
+    const bN=document.getElementById("modNaive"), bF=document.getElementById("modFair");
+    bN.onclick=()=>{ method="naive"; bN.setAttribute("aria-pressed","true"); bF.setAttribute("aria-pressed","false"); reset(); };
+    bF.onclick=()=>{ method="fair"; bF.setAttribute("aria-pressed","true"); bN.setAttribute("aria-pressed","false"); reset(); };
+    document.getElementById("modRoll").onclick=()=>addRolls(10000);
+    document.getElementById("modReset").onclick=reset;
+    render();
+  })();
+
+  /* ==================== EXP 05 : human ==================== */
+  (function(){
+    const pad=document.getElementById("humanPad");
+    const guessLine=document.getElementById("humanGuess");
+    const fill=document.getElementById("humanFill"), txt=document.getElementById("humanTxt");
+    const nEl=document.getElementById("humanN");
+    let last=null, trans={}, hits=0, tries=0, n=0;
+    // trans[prev] = [c1..c6]
+    for(let p=0;p<=6;p++) trans[p]=[1,1,1,1,1,1]; // laplace smoothing, p=0 means "no history"
+    function predict(prev){
+      const row=trans[prev==null?0:prev];
+      // humans avoid repeats -> nudge against prev
+      let best=1,bestScore=-1;
+      for(let f=1;f<=6;f++){
+        let sc=row[f-1] + (f===prev?-0.6:0) + Math.random()*0.01;
+        if(sc>bestScore){bestScore=sc;best=f;}
+      }
+      return best;
+    }
+    function press(f){
+      const guess=predict(last);
+      // score only after we have some history
+      if(n>=3){
+        tries++;
+        if(guess===f) hits++;
+      }
+      // learn
+      trans[last==null?0:last][f-1]++;
+      n++; nEl.textContent=n;
+      last=f;
+      const acc = tries? hits/tries*100 : 0;
+      if(n<3){
+        guessLine.innerHTML="Learning your habits&hellip; keep tapping.";
+      } else {
+        const right = guess===f;
+        guessLine.innerHTML="It guessed <b>"+guess+"</b>, you tapped <b>"+f+"</b> &mdash; "+
+          (right?"<b class='hit'>caught you.</b>":"<b class='miss'>missed that one.</b>");
+      }
+      const shown = tries? acc : 0;
+      fill.style.width = Math.min(100, shown)+"%";
+      fill.style.background = shown>16.66? "var(--alert)":"var(--accent)";
+      txt.textContent = "predictor accuracy: "+shown.toFixed(0)+"% \u00B7 baseline 16.7%"+
+        (tries>=10 && shown>22? "  \u2190 beating random":"");
+    }
+    for(let f=1;f<=6;f++){
+      const btn=document.createElement("button"); btn.setAttribute("aria-label","Tap "+f);
+      const d=makeDie(); btn.appendChild(d); setDie(d,f);
+      btn.onclick=()=>press(f);
+      pad.appendChild(btn);
+    }
+    document.getElementById("humanReset").onclick=()=>{
+      last=null; hits=0; tries=0; n=0; nEl.textContent=0;
+      for(let p=0;p<=6;p++) trans[p]=[1,1,1,1,1,1];
+      fill.style.width="0%"; txt.textContent="predictor accuracy: \u2014 \u00B7 baseline 16.7%";
+      guessLine.textContent="The predictor is waiting for your first few taps\u2026";
+    };
+  })();
+
+})();
+</script>
+
+</body>
+</html>
